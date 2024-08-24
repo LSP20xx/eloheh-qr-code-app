@@ -1,49 +1,53 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { FaDownload } from "react-icons/fa";
 import jsPDF from "jspdf";
 import "../globals.css";
 
-function generateUniqueCode() {
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const numbers = "0123456789";
-  let result = "";
-  for (let i = 0; i < 3; i++) {
-    result += letters.charAt(Math.floor(Math.random() * letters.length));
-  }
-  for (let i = 0; i < 2; i++) {
-    result += numbers.charAt(Math.floor(Math.random() * numbers.length));
-  }
-  return result;
-}
-
 export default function UniqueCodePage() {
-  const [uniqueCode, setUniqueCode] = useState<string>("");
+  const [uniqueCode, setUniqueCode] = useState(() => {
+    const savedCode = localStorage.getItem("uniqueCode");
+    return savedCode || "";
+  });
+
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
-    // Verificar si ya existe un código en localStorage
-    const storedCode = localStorage.getItem("uniqueCode");
-    if (storedCode) {
-      setUniqueCode(storedCode);
-    } else {
-      // Generar un nuevo código único
-      const newCode = generateUniqueCode();
-      setUniqueCode(newCode);
-      localStorage.setItem("uniqueCode", newCode);
+    if (!uniqueCode) {
+      generateUniqueCode();
     }
-  }, []);
+  }, [uniqueCode]);
 
-  const downloadCode = () => {
+  const generateUniqueCode = () => {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const numbers = "0123456789";
+    let result = "";
+    for (let i = 0; i < 3; i++) {
+      result += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    for (let i = 0; i < 2; i++) {
+      result += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    }
+    setUniqueCode(result);
+    localStorage.setItem("uniqueCode", result);
+  };
+
+  const downloadCode = useCallback(() => {
     const doc = new jsPDF();
     doc.setFont("helvetica", "bold");
     doc.text("Code", 105, 120, { align: "center" });
     doc.setFontSize(80);
     doc.text(uniqueCode, 105, 160, { align: "center" });
     doc.save("eloheh_unique_code.pdf");
-  };
+  }, [uniqueCode]);
 
-  const sendEmail = async (email: string) => {
+  useEffect(() => {
+    if (uniqueCode) {
+      downloadCode();
+    }
+  }, [uniqueCode, downloadCode]);
+
+  const sendEmail = async () => {
     try {
       const response = await fetch("/api/sendEmail", {
         method: "POST",
@@ -71,7 +75,7 @@ export default function UniqueCodePage() {
   return (
     <div className="container">
       <h1>Code</h1>
-      {uniqueCode ? <p className="code">{uniqueCode}</p> : <p>Loading...</p>}
+      <p className="code">{uniqueCode}</p>
       <div>
         <FaDownload onClick={downloadCode} className="download-icon" />
       </div>
@@ -79,23 +83,12 @@ export default function UniqueCodePage() {
         <input
           type="email"
           placeholder="Enter email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           className="email-input"
-          onBlur={(e) => sendEmail(e.target.value)}
         />
-        <button
-          onClick={() => {
-            const inputElement = document.querySelector(
-              ".email-input"
-            ) as HTMLInputElement | null;
-            if (inputElement) {
-              sendEmail(inputElement.value);
-            } else {
-              console.error("Input element not found");
-            }
-          }}
-          className="send-button"
-        >
-          Send Code to Email
+        <button onClick={sendEmail} className="send-button">
+          Send code to email
         </button>
       </div>
     </div>
