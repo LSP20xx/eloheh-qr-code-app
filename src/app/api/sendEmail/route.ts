@@ -1,17 +1,27 @@
+import nodemailer from "nodemailer";
 import { NextResponse } from "next/server";
-import emailjs from "emailjs-com";
 
 export async function POST(request: Request) {
-  const { email, code } = await request.json();
+  const { email, subject, message } = await request.json();
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_PASSWORD,
+    },
+  });
+
+  const mailOptions = {
+    from: process.env.GMAIL_USER,
+    to: email,
+    subject: subject || "Billete.io Notification",
+    text: message || "This is a test email from Billete.io",
+  };
 
   try {
-    const response = await emailjs.send(
-      process.env.EMAILJS_SERVICE_ID!,
-      process.env.EMAILJS_TEMPLATE_ID!,
-      { to_email: email, code },
-      process.env.EMAILJS_USER_ID!
-    );
-    return NextResponse.json({ message: "Email sent successfully", response });
+    const info = await transporter.sendMail(mailOptions);
+    return NextResponse.json({ message: "Email sent successfully", info });
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to send email", error },
